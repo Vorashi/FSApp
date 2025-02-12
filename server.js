@@ -68,6 +68,9 @@ app.delete('/file', (req, res) => {
     });
 });
 
-app.listen(port, () => {
-    console.log(`Сервер запущен на http://localhost:${port}`);
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на http://localhost:${PORT}`);
 });
+
+//GET http://localhost:3000/files?path=D:/practic Sharov/fsApp/dataFile/ - на все файлы в папке запрос
+//GET http://localhost:3000/file?path=D:/practic Sharov/fsApp/dataFile/example.json - на конкретный файл
