@@ -1,76 +1,91 @@
-const bodyParser = require('body-parser');
 const express = require('express');
-const path = require('path');
 const fs = require('fs');
-const app = express();
-const PORT = '3000';
+const path = require('path');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
+const app = express();
+const port = 5000;
+
+app.use(cors());
 app.use(bodyParser.json());
 
-const folderPath = 'D:/practicSharov/fsApp/dataFile';
+const baseFolder = 'D:/practicSharov/fsApp/dataFile';
+
+if (!fs.existsSync(baseFolder)) {
+  console.error('Папка не существует:', baseFolder);
+  process.exit(1); 
+}
 
 app.get('/files', (req, res) => {
-    if (!fs.existsSync(folderPath)) return res.status(404).send('Указанная папка не существует');
-
-    fs.readdir(folderPath, (err, files) => {
-        if (err) return res.status(500).send('Ошибка при чтении папки');
-
-        const fileList = files.filter(file => {
-            const filePath = path.join(folderPath, file);
-            return fs.statSync(filePath).isFile();
-        });
-
-        res.json(fileList);
+  fs.readdir(baseFolder, (err, files) => {
+    if (err) {
+      console.error('Ошибка чтения папки:', err);
+      return res.status(500).send('Ошибка чтения папки');
+    }
+    
+    const fileList = files.filter(file => {
+      return fs.statSync(path.join(baseFolder, file)).isFile();
     });
+    
+    res.json(fileList);
+  });
 });
 
-app.get('/file', (req, res) => {
-    const fileName = req.query.name;
+app.post('/files', (req, res) => {
+  const { filename, content } = req.body;
+  const filePath = path.join(baseFolder, filename);
 
-    if (!fileName) return res.status(400).send('Не указано имя файла');
+  if (fs.existsSync(filePath)) {
+    return res.status(400).send('Файл уже существует');
+  }
 
-    const filePath = path.join(folderPath, fileName);
-
-    if (!fs.existsSync(filePath)) return res.status(404).send('Файл не существует');
-
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) return res.status(500).send('Ошибка при чтении файла');
-        res.json({ content: data });
-    });
+  fs.writeFile(filePath, content || '', (err) => {
+    if (err) {
+      console.error('Ошибка создания файла:', err);
+      return res.status(500).send('Ошибка создания файла');
+    }
+    res.send('Файл создан');
+  });
 });
 
-app.post('/file', (req, res) => {
-    const fileName = req.body.name;
-    const content = req.body.content;
-
-    if (!fileName || !content) return res.status(400).send('Не указано имя файла или содержимое');
-
-    const filePath = path.join(folderPath, fileName);
-
-    fs.writeFile(filePath, content, 'utf8', (err) => {
-        if (err) return res.status(500).send('Ошибка при сохранении файла');
-        res.send('Файл успешно сохранен');
-    });
+app.get('/file/:filename', (req, res) => {
+  const filePath = path.join(baseFolder, req.params.filename);
+  
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error('Ошибка чтения файла:', err);
+      return res.status(404).send('Файл не найден');
+    }
+    res.json({ content: data });
+  });
 });
 
-app.delete('/file', (req, res) => {
-    const fileName = req.body.name;
+app.put('/file/:filename', (req, res) => {
+  const filePath = path.join(baseFolder, req.params.filename);
+  const content = req.body.content;
 
-    if (!fileName) return res.status(400).send('Не указано имя файла');
-
-    const filePath = path.join(folderPath, fileName);
-
-    if (!fs.existsSync(filePath)) return res.status(404).send('Файл не существует');
-
-    fs.unlink(filePath, (err) => {
-        if (err) return res.status(500).send('Ошибка при удалении файла');
-        res.send('Файл успешно удален');
-    });
+  fs.writeFile(filePath, content, (err) => {
+    if (err) {
+      console.error('Ошибка сохранения:', err);
+      return res.status(500).send('Ошибка сохранения');
+    }
+    res.send('Файл обновлен');
+  });
 });
 
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на http://localhost:${PORT}`);
+app.delete('/file/:filename', (req, res) => {
+  const filePath = path.join(baseFolder, req.params.filename);
+
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Ошибка удаления:', err);
+      return res.status(500).send('Ошибка удаления');
+    }
+    res.send('Файл удален');
+  });
 });
 
-//GET http://localhost:3000/files?path=D:/practic Sharov/fsApp/dataFile/ - на все файлы в папке запрос
-//GET http://localhost:3000/file?path=D:/practic Sharov/fsApp/dataFile/example.json - на конкретный файл
+app.listen(port, () => {
+  console.log(`Сервер запущен на порту http://localhost:${port}`);
+});
